@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Login - Online Exam</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        .screen {
+            display: none;
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .screen.active {
+            display: flex;
+        }
+
+        /* Login Screen */
+        .login-container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            max-width: 450px;
+            width: 100%;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .login-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 6px;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+        }
+
+        .login-header {
+            margin-bottom: 30px;
+        }
+
+        .login-header .icon {
+            font-size: 4rem;
+            color: #667eea;
+            margin-bottom: 20px;
+        }
+
+        .login-header h2 {
+            color: #333;
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+            text-align: left;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            background: #f8f9fa;
+        }
+
+        .form-control:focus {
+            border-color: #667eea;
+            background: white;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            border-radius: 50px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 20px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .back-link {
+            margin-top: 20px;
+            display: block;
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .back-link:hover {
+            text-decoration: underline;
+        }
+
+        /* Student Dashboard */
+        .dashboard-container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .welcome-header {
+            margin-bottom: 40px;
+        }
+
+        .welcome-header h2 {
+            color: #333;
+            font-size: 2.2rem;
+            margin-bottom: 10px;
+        }
+
+        .student-name {
+            color: #667eea;
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+
+        .student-details {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 30px;
+            text-align: left;
+        }
+
+        .detail-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .detail-item:last-child {
+            border-bottom: none;
+        }
+
+        .detail-label {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .detail-value {
+            color: #666;
+        }
+
+        .exam-selection {
+            margin-bottom: 30px;
+        }
+
+        .exam-selection h3 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+        }
+
+        .exam-options {
+            display: grid;
+            gap: 15px;
+        }
+
+        .exam-option {
+            background: #f8f9fa;
+            border: 3px solid transparent;
+            border-radius: 15px;
+            padding: 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-align: left;
+        }
+
+        .exam-option:hover {
+            border-color: #667eea;
+            background: rgba(102, 126, 234, 0.05);
+        }
+
+        .exam-option.selected {
+            border-color: #667eea;
+            background: rgba(102, 126, 234, 0.1);
+        }
+
+        .exam-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 5px;
+        }
+
+        .exam-details {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .start-exam-btn {
+            background: linear-gradient(135deg, #10b981, #059669);
+            font-size: 1.2rem;
+            padding: 18px;
+        }
+
+        .start-exam-btn:hover {
+            box-shadow: 0 10px 25px rgba(16, 185, 129, 0.3);
+        }
+
+        .logout-btn {
+            background: #e74c3c;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 25px;
+            cursor: pointer;
+            float: right;
+            margin-top: -50px;
+        }
+
+        @media (max-width: 600px) {
+            .login-container, .dashboard-container {
+                padding: 30px 20px;
+            }
+
+            .exam-options {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Login Screen -->
+    <div id="loginScreen" class="screen active">
+        <div class="login-container">
+            <div class="login-header">
+                <div class="icon">
+                    <i class="fas fa-user-graduate"></i>
+                </div>
+                <h2>Student Login</h2>
+                <p>Enter your credentials to access the exam portal</p>
+            </div>
+
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="username">Username / Roll Number</label>
+                    <input type="text" id="username" class="form-control" placeholder="Enter your username" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" class="form-control" placeholder="Enter your password" required>
+                </div>
+
+                <button type="submit" class="btn" id="loginBtn">
+                    <i class="fas fa-sign-in-alt"></i>
+                    Login
+                </button>
+            </form>
+
+            <a href="index.html" class="back-link">
+                <i class="fas fa-arrow-left"></i> Back to Home
+            </a>
+        </div>
+    </div>
+
+    <!-- Student Dashboard -->
+    <div id="dashboardScreen" class="screen">
+        <div class="dashboard-container">
+            <button class="logout-btn" onclick="logout()">
+                <i class="fas fa-sign-out-alt"></i> Logout
+            </button>
+
+            <div class="welcome-header">
+                <h2>Welcome Back!</h2>
+                <div class="student-name" id="studentName">John Doe</div>
+                <p>Ready to take your examination?</p>
+            </div>
+
+            <div class="student-details">
+                <div class="detail-item">
+                    <span class="detail-label">Student Name:</span>
+                    <span class="detail-value" id="displayName">John Doe</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Roll Number:</span>
+                    <span class="detail-value" id="displayRoll">CS21B1234</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Department:</span>
+                    <span class="detail-value" id="displayDept">Computer Science</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Semester:</span>
+                    <span class="detail-value" id="displaySem">6th Semester</span>
+                </div>
+            </div>
+
+            <div class="exam-selection">
+                <h3><i class="fas fa-clipboard-list"></i> Select Examination</h3>
+                <div class="exam-options">
+                    <div class="exam-option" onclick="selectExam('mathematics')" id="exam-mathematics">
+                        <div class="exam-title"><i class="fas fa-calculator"></i> Mathematics</div>
+                        <div class="exam-details">Duration: 2 hours | Questions: 50 | Marks: 100</div>
+                    </div>
+
+                    <div class="exam-option" onclick="selectExam('coding')" id="exam-coding">
+                        <div class="exam-title"><i class="fas fa-code"></i> Coding Level Test</div>
+                        <div class="exam-details">Duration: 3 hours | Questions: 8 | Marks: 200</div>
+                    </div>
+
+                    <div class="exam-option" onclick="selectExam('aptitude')" id="exam-aptitude">
+                        <div class="exam-title"><i class="fas fa-brain"></i> Aptitude Test</div>
+                        <div class="exam-details">Duration: 1.5 hours | Questions: 60 | Marks: 120</div>
+                    </div>
+                </div>
+            </div>
+
+            <button class="btn start-exam-btn" id="startExamBtn" onclick="startExam()" disabled>
+                <i class="fas fa-play-circle"></i>
+                Start Examination
+            </button>
+        </div>
+    </div>
+
+    <script>
+        let selectedExam = null;
+        let currentStudent = null;
+
+        // Sample student data
+        const studentDatabase = {
+            'demo': {
+                name: 'John Doe',
+                roll: 'CS21B1234',
+                department: 'Computer Science',
+                semester: '6th Semester',
+                password: '123'
+            },
+            'student1': {
+                name: 'Alice Johnson',
+                roll: 'EC21B5678',
+                department: 'Electronics',
+                semester: '4th Semester',
+                password: 'pass123'
+            },
+            'cs001': {
+                name: 'Mike Wilson',
+                roll: 'CS21B9999',
+                department: 'Computer Science',
+                semester: '8th Semester',
+                password: 'secure456'
+            }
+        };
+
+        document.getElementById('loginForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const username = document.getElementById('username').value.toLowerCase();
+            const password = document.getElementById('password').value;
+            
+            // Validate credentials
+            if (studentDatabase[username] && studentDatabase[username].password === password) {
+                currentStudent = studentDatabase[username];
+                showDashboard();
+            } else {
+                alert('Invalid username or password!\n\nDemo credentials:\nUsername: demo\nPassword: 123');
+            }
+        });
+
+        function showDashboard() {
+            // Hide login screen
+            document.getElementById('loginScreen').classList.remove('active');
+            document.getElementById('dashboardScreen').classList.add('active');
+            
+            // Display student information
+            document.getElementById('studentName').textContent = currentStudent.name;
+            document.getElementById('displayName').textContent = currentStudent.name;
+            document.getElementById('displayRoll').textContent = currentStudent.roll;
+            document.getElementById('displayDept').textContent = currentStudent.department;
+            document.getElementById('displaySem').textContent = currentStudent.semester;
+        }
+
+        function selectExam(examType) {
+            // Remove selection from all exams
+            document.querySelectorAll('.exam-option').forEach(option => {
+                option.classList.remove('selected');
+            });
+            
+            // Select current exam
+            document.getElementById('exam-' + examType).classList.add('selected');
+            selectedExam = examType;
+            
+            // Enable start exam button
+            document.getElementById('startExamBtn').disabled = false;
+        }
+
+        function startExam() {
+            if (!selectedExam) {
+                alert('Please select an examination first!');
+                return;
+            }
+            
+            // Store exam data and redirect
+            const examData = {
+                student: currentStudent,
+                exam: selectedExam,
+                startTime: new Date().toISOString()
+            };
+            
+            // Store in sessionStorage for exam page
+            sessionStorage.setItem('examData', JSON.stringify(examData));
+            
+            // Redirect to exam page
+            window.location.href = 'exam-interface.html';
+        }
+
+        function logout() {
+            if (confirm('Are you sure you want to logout?')) {
+                currentStudent = null;
+                selectedExam = null;
+                document.getElementById('dashboardScreen').classList.remove('active');
+                document.getElementById('loginScreen').classList.add('active');
+                
+                // Clear form
+                document.getElementById('loginForm').reset();
+            }
+        }
+
+        // Prevent browser back button
+        history.pushState(null, null, location.href);
+        window.onpopstate = function () {
+            history.go(1);
+        };
+
+        // Disable right-click and shortcuts
+        document.addEventListener('contextmenu', e => e.preventDefault());
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'F12' || e.key === 'F5' || 
+                (e.ctrlKey && (e.key === 'u' || e.key === 'r' || e.key === 'i'))) {
+                e.preventDefault();
+            }
+        });
+    </script>
+</body>
+</html>
