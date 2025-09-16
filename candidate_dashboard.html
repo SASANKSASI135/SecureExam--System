@@ -184,14 +184,6 @@
             opacity: 0.3;
         }
 
-        .exams-section h2 {
-            color: #1f2937;
-            margin-bottom: 1.5rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
         .exam-card {
             background: #f9fafb;
             border: 1px solid #e5e7eb;
@@ -439,38 +431,30 @@
     <script>
         function logout() {
             if(confirm('Are you sure you want to logout?')) {
-                // Here you would clear session and redirect to login
-                alert('Logging out... Redirecting to login page');
-                // window.location.href = 'index.html';
+                window.location.href = 'index.html';
             }
         }
 
         function startExam(examCode) {
             if(confirm('Once you start the exam, you cannot pause it. Are you ready to begin?')) {
-                alert(`Starting ${examCode} exam... Opening exam interface`);
-                // Here you would redirect to exam interface
-                // window.location.href = `exam.html?code=${examCode}`;
+                window.location.href = 'secure_exam_interface.html';
             }
         }
 
         function viewInstructions(examCode) {
             alert(`Displaying instructions for ${examCode} exam`);
-            // Here you would show exam instructions modal or page
         }
 
         function viewResult(examCode) {
             alert(`Showing detailed results for ${examCode} exam`);
-            // Here you would redirect to results page
         }
 
         function downloadCertificate(examCode) {
             alert(`Downloading certificate for ${examCode} exam`);
-            // Here you would trigger certificate download
         }
 
         // Auto-refresh exam status every 30 seconds
         setInterval(function() {
-            // Here you would check for exam status updates
             console.log('Checking for exam updates...');
         }, 30000);
 
