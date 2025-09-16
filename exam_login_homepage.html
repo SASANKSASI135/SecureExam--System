@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Online Exam System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+            width: 100%;
+            max-width: 900px;
+            min-height: 600px;
+            display: flex;
+        }
+
+        .header {
+            text-align: center;
+            padding: 2rem;
+            background: linear-gradient(45deg, #4f46e5, #7c3aed);
+            color: white;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            font-weight: 700;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+            line-height: 1.6;
+        }
+
+        .login-section {
+            flex: 1;
+            padding: 3rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .login-tabs {
+            display: flex;
+            margin-bottom: 2rem;
+            border-radius: 10px;
+            background: #f3f4f6;
+            padding: 0.5rem;
+        }
+
+        .tab-button {
+            flex: 1;
+            padding: 1rem;
+            border: none;
+            background: transparent;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            color: #6b7280;
+        }
+
+        .tab-button.active {
+            background: #4f46e5;
+            color: white;
+            transform: translateY(-2px);
+        }
+
+        .login-form {
+            display: none;
+        }
+
+        .login-form.active {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 1rem;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #4f46e5;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(79, 70, 229, 0.2);
+        }
+
+        .login-button {
+            width: 100%;
+            padding: 1rem;
+            background: linear-gradient(45deg, #4f46e5, #7c3aed);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 1rem;
+        }
+
+        .login-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(79, 70, 229, 0.3);
+        }
+
+        .demo-info {
+            margin-top: 1.5rem;
+            padding: 1rem;
+            background: #fef3c7;
+            border-radius: 10px;
+            border-left: 4px solid #f59e0b;
+        }
+
+        .demo-info h4 {
+            color: #92400e;
+            margin-bottom: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .demo-info p {
+            color: #78350f;
+            font-size: 0.85rem;
+            margin: 0.25rem 0;
+        }
+
+        .success-message, .error-message {
+            padding: 1rem;
+            border-radius: 10px;
+            margin-bottom: 1rem;
+            text-align: center;
+            font-weight: 600;
+            display: none;
+        }
+
+        .success-message {
+            background: #d1fae5;
+            color: #065f46;
+            border: 1px solid #a7f3d0;
+        }
+
+        .error-message {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fca5a5;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                flex-direction: column;
+                margin: 1rem;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .login-section {
+                padding: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📚 Online Exam System</h1>
+            <p>Secure, reliable, and user-friendly examination platform for educational institutions and organizations.</p>
+        </div>
+
+        <div class="login-section">
+            <div class="login-tabs">
+                <button class="tab-button active" onclick="switchTab('candidate')">Candidate Login</button>
+                <button class="tab-button" onclick="switchTab('admin')">Admin Login</button>
+            </div>
+
+            <div id="success-message" class="success-message"></div>
+            <div id="error-message" class="error-message"></div>
+
+            <!-- Candidate Login Form -->
+            <form id="candidate-form" class="login-form active">
+                <div class="form-group">
+                    <label for="candidate-username">Username</label>
+                    <input type="text" id="candidate-username" name="username" required>
+                </div>
+                <div class="form-group">
+                    <label for="candidate-password">Password</label>
+                    <input type="password" id="candidate-password" name="password" required>
+                </div>
+                <button type="submit" class="login-button">Login as Candidate</button>
+            </form>
+
+            <!-- Admin Login Form -->
+            <form id="admin-form" class="login-form">
+                <div class="form-group">
+                    <label for="admin-username">Admin Username</label>
+                    <input type="text" id="admin-username" name="username" required>
+                </div>
+                <div class="form-group">
+                    <label for="admin-password">Admin Password</label>
+                    <input type="password" id="admin-password" name="password" required>
+                </div>
+                <button type="submit" class="login-button">Login as Admin</button>
+            </form>
+
+            <!-- Demo Credentials Info -->
+            <div class="demo-info">
+                <h4>🔓 Demo Credentials</h4>
+                <p><strong>Candidate:</strong> Username: manoj | Password: 2002</p>
+                <p><strong>Admin:</strong> Username: admin | Password: admin123</p>
+                <p><em>This is for demonstration purposes only</em></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Tab switching functionality
+        function switchTab(tabType) {
+            // Remove active class from all tabs and forms
+            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.login-form').forEach(form => form.classList.remove('active'));
+            
+            // Add active class to clicked tab
+            event.target.classList.add('active');
+            
+            // Show corresponding form
+            document.getElementById(tabType + '-form').classList.add('active');
+            
+            // Clear any messages
+            hideMessages();
+        }
+
+        // Message display functions
+        function showSuccessMessage(message) {
+            const successDiv = document.getElementById('success-message');
+            successDiv.textContent = message;
+            successDiv.style.display = 'block';
+            document.getElementById('error-message').style.display = 'none';
+        }
+
+        function showErrorMessage(message) {
+            const errorDiv = document.getElementById('error-message');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+            document.getElementById('success-message').style.display = 'none';
+        }
+
+        function hideMessages() {
+            document.getElementById('success-message').style.display = 'none';
+            document.getElementById('error-message').style.display = 'none';
+        }
+
+        // Candidate login handler
+        document.getElementById('candidate-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const username = document.getElementById('candidate-username').value;
+            const password = document.getElementById('candidate-password').value;
+            
+            // Demo credentials check
+            if (username === 'manoj' && password === '2002') {
+                showSuccessMessage('✅ Candidate login successful! Redirecting to exam dashboard...');
+                setTimeout(() => {
+                    // Here you would redirect to candidate dashboard
+                    // window.location.href = 'candidate-dashboard.html';
+                    alert('Redirecting to Candidate Exam Dashboard...');
+                }, 2000);
+            } else {
+                showErrorMessage('❌ Invalid credentials. Please check username and password.');
+            }
+        });
+
+        // Admin login handler
+        document.getElementById('admin-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const username = document.getElementById('admin-username').value;
+            const password = document.getElementById('admin-password').value;
+            
+            // Demo admin credentials
+            if (username === 'admin' && password === 'admin123') {
+                showSuccessMessage('✅ Admin login successful! Redirecting to admin panel...');
+                setTimeout(() => {
+                    // Here you would redirect to admin dashboard
+                    // window.location.href = 'admin-dashboard.html';
+                    alert('Redirecting to Admin Dashboard...');
+                }, 2000);
+            } else {
+                showErrorMessage('❌ Invalid admin credentials. Please check username and password.');
+            }
+        });
+
+        // Clear messages when user starts typing
+        document.querySelectorAll('input').forEach(input => {
+            input.addEventListener('input', hideMessages);
+        });
+    </script>
+</body>
+</html>
