@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Exam - Secure Mode</title>
+
+  <link rel="stylesheet" href="css/style.css">
+
+  <style>
+    /* minimal extras specific to exam page */
+    .exam-container {
+      display: grid;
+      grid-template-columns: 420px 1fr;
+      gap: 20px;
+      align-items: start;
+      max-width: 1100px;
+      margin: 30px auto;
+    }
+    .panel {
+      background: #fff;
+      border-radius: 10px;
+      padding: 16px;
+      box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+    }
+    #videoWrap { position: relative; width: 400px; }
+    #webcam { width: 100%; border-radius: 8px; background: #000; }
+    #overlay {
+      position:absolute; left:0; top:0;
+      width: 100%; height: 100%;
+      pointer-events:none;
+    }
+    .status-line { margin: 8px 0; font-size: 14px; }
+    .danger { color: #b30000; font-weight: 700; }
+    .ok { color: #0a7b0a; font-weight: 700; }
+    #infractions { font-size: 16px; }
+    #examArea { padding: 10px; }
+    .question { margin-bottom: 12px; }
+    .btn { padding: 10px 16px; border: none; border-radius: 6px; cursor: pointer; }
+    .btn-primary { background: #007bff; color: white; }
+    .btn-danger { background: #d9534f; color: white; }
+    #log { max-height: 120px; overflow:auto; background:#f8f9fb; padding:8px; border-radius:6px; font-size:12px }
+    .muted { color:#666; font-size:13px; }
+  </style>
+</head>
+<body>
+  <div style="text-align:center; margin-top:18px;">
+    <h2>Secure Exam — Proctor Mode</h2>
+    <p class="muted">Camera & microphone required. Do not switch tabs or use ESC. Infractions will be recorded.</p>
+  </div>
+
+  <div class="exam-container">
+    <!-- Left panel: Camera + Proctor status -->
+    <div class="panel" id="proctorPanel">
+      <h3>Proctoring</h3>
+
+      <div id="videoWrap">
+        <video id="webcam" autoplay muted playsinline></video>
+        <canvas id="overlay"></canvas>
+      </div>
+
+      <div class="status-line">Camera: <span id="camStatus" class="danger">OFF</span></div>
+      <div class="status-line">Microphone: <span id="micStatus" class="danger">OFF</span></div>
+      <div class="status-line">Face detected: <span id="faceStatus" class="danger">NO</span></div>
+      <div class="status-line">Object alert: <span id="objectStatus" class="ok">None</span></div>
+      <div class="status-line">Infractions: <span id="infractions" class="danger">0</span></div>
+
+      <div style="margin-top:12px;">
+        <button id="startBtn" class="btn btn-primary">Start Proctoring & Start Exam</button>
+        <button id="endBtn" class="btn btn-danger" style="margin-left:8px;" disabled>End Exam</button>
+      </div>
+
+      <h4 style="margin-top:12px;">Log</h4>
+      <div id="log"></div>
+
+      <p class="muted" style="margin-top:10px;">
+        Notes: The page will auto-submit if infractions exceed limit. Camera must remain focused on your face.
+      </p>
+    </div>
+
+    <!-- Right panel: Exam UI -->
+    <div class="panel" id="examPanel">
+      <h3>Exam</h3>
+
+      <div id="examHeader">
+        <div>Candidate: <strong id="candidateName">-</strong></div>
+        <div>Time left: <strong id="timer">--:--</strong></div>
+      </div>
+
+      <hr>
+
+      <div id="examArea">
+        <!-- Replace with your question rendering logic -->
+        <div class="question" id="q1">
+          <p><strong>Q1.</strong> What is the capital of India?</p>
+          <label><input type="radio" name="ans1" value="a"> Mumbai</label><br>
+          <label><input type="radio" name="ans1" value="b"> New Delhi</label><br>
+          <label><input type="radio" name="ans1" value="c"> Kolkata</label><br>
+        </div>
+
+        <div class="question" id="q2">
+          <p><strong>Q2.</strong> 2 + 2 = ?</p>
+          <label><input type="radio" name="ans2" value="a"> 3</label><br>
+          <label><input type="radio" name="ans2" value="b"> 4</label><br>
+          <label><input type="radio" name="ans2" value="c"> 5</label><br>
+        </div>
+
+        <div style="margin-top:12px;">
+          <button id="submitBtn" class="btn btn-primary">Submit Exam</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+  /**************************************************************************
+   * Configuration
+   **************************************************************************/
+  const MAX_INFRACTIONS = 3;      // auto-submit after this many infractions
+  const CHECK_INTERVAL_MS = 800;  // camera analysis loop interval
+  const EXAM_DURATION_MIN = 10;   // sample duration (minutes) - set as needed
+
+  /**************************************************************************
+   * Globals & DOM
+   **************************************************************************/
+  const webcamEl = document.getElementById('webcam');
+  const overlay = document.getElementById('overlay');
+  const overlayCtx = overlay.getContext('2d');
+  const startBtn = document.getElementById('startBtn');
+  const endBtn = document.getElementById('endBtn');
+  const camStatus = document.getElementById('camStatus');
+  const micStatus = document.getElementById('micStatus');
+  const faceStatus = document.getElementById('faceStatus');
+  const objectStatus = document.getElementById('objectStatus');
+  const infraEl = document.getElementById('infractions');
+  const logEl = document.getElementById('log');
+  const timerEl = document.getElementById('timer');
+  const candidateNameEl = document.getElementById('candidateName');
+  const submitBtn = document.getElementById('submitBtn');
+
+  let stream = null;
+  let audioStream = null;
+  let proctoring = false;
+  let infractions = 0;
+  let lastVisibility = document.visibilityState;
+  let models = { coco: null, face: null };
+  let analysisInterval = null;
+  let examTimer = null;
+  let examEndTime = null;
+
+  /**************************************************************************
+   * Utilities
+   **************************************************************************/
+  function log(msg) {
+    const ts = new Date().toLocaleTimeString();
+    logEl.innerHTML = `<div>[${ts}] ${msg}</div>` + logEl.innerHTML;
+  }
+  function setInfractions(n) {
+    infractions = n;
+    infraEl.textContent = infractions;
+    infraEl.className = infractions ? 'danger' : '';
+  }
+  function addInfraction(reason) {
+    setInfractions(infractions + 1);
+    log('Infraction: ' + reason);
+    if (infractions >= MAX_INFRACTIONS) {
+      log('Max infractions reached — auto-submitting exam.');
+      autoSubmitExam();
+    }
+  }
+  function autoSubmitExam() {
+    stopProctor();
+    submitExam(true);
+  }
+
+  /**************************************************************************
+   * Safety: prevent easy bypass techniques
+   **************************************************************************/
+  // disable context menu
+  window.addEventListener('contextmenu', e => { e.preventDefault(); addInfraction('Context menu'); });
+
+  // prevent ESC key default and mark as infraction
+  window.addEventListener('keydown', e => {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      addInfraction('ESC key pressed');
+    }
+  }, true);
+
+  // detect visibility change (tab switch / minimize)
+  document.addEventListener('visibilitychange', () => {
+    if (!proctoring) return;
+    if (document.visibilityState !== 'visible') {
+      addInfraction('Tab switched / window hidden');
+    }
+    lastVisibility = document.visibilityState;
+  });
+
+  // detect page blur (another way)
+  window.addEventListener('blur', () => { if (proctoring) addInfraction('Window lost focus'); });
+
+  /**************************************************************************
+   * Camera & microphone setup
+   **************************************************************************/
+  async function startMedia() {
+    try {
+      const constraints = { video: { width: 640, height: 480, facingMode: 'user' }, audio: true };
+      stream = await navigator.mediaDevices.getUserMedia(constraints);
+      webcamEl.srcObject = stream;
+      // separate check for audio track
+      micStatus.textContent = stream.getAudioTracks().length ? 'ON' : 'OFF';
+      micStatus.className = stream.getAudioTracks().length ? 'ok' : 'danger';
+      camStatus.textContent = stream.getVideoTracks().length ? 'ON' : 'OFF';
+      camStatus.className = stream.getVideoTracks().length ? 'ok' : 'danger';
+      await webcamEl.play();
+
+      // adjust overlay size
+      overlay.width = webcamEl.videoWidth || 400;
+      overlay.height = webcamEl.videoHeight || 300;
+
+      log('Camera & mic started.');
+      return true;
+    } catch (err) {
+      console.error('Media error', err);
+      log('Error accessing camera/microphone: ' + (err.message || err.name));
+      alert('Camera and microphone are required. Please allow permissions and reload the page.');
+      return false;
+    }
+  }
+
+  function stopMedia() {
+    if (!stream) return;
+    stream.getTracks().forEach(t => t.stop());
+    stream = null;
+    camStatus.textContent = 'OFF';
+    camStatus.className = 'danger';
+    micStatus.textContent = 'OFF';
+    micStatus.className = 'danger';
+    log('Camera & mic stopped.');
+  }
+
+  /**************************************************************************
+   * Load TensorFlow models (COCO-SSD for objects, face-landmarks for eyes)
+   * Using CDN links loaded in document (we create dynamic script tags below
+   * so the page can operate if CDN is reachable).
+   **************************************************************************/
+  async function loadModels() {
+    log('Loading ML models (may take a few seconds)...');
+
+    // load tfjs
+    if (!window.tf) {
+      await loadScript('https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.12.0/dist/tf.min.js');
+    }
+
+    // load coco-ssd
+    if (!window.cocoSsd) {
+      await loadScript('https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd@2.2.2/dist/coco-ssd.min.js');
+    }
+    // load face-landmarks-detection
+    if (!window.faceLandmarksDetection) {
+      await loadScript('https://cdn.jsdelivr.net/npm/@tensorflow-models/face-landmarks-detection@1.0.3/dist/face-landmarks-detection.min.js');
+    }
+    // set model promises
+    models.coco = await cocoSsd.load();
+    models.face = await faceLandmarksDetection.load(faceLandmarksDetection.SupportedPackages.mediapipeFacemesh);
+    log('Models loaded.');
+  }
+
+  // helper to load a script
+  function loadScript(src) {
+    return new Promise((resolve, reject) => {
+      const s = document.createElement('script');
+      s.src = src;
+      s.onload = () => resolve();
+      s.onerror = (e) => reject(new Error('Failed to load ' + src));
+      document.head.appendChild(s);
+    });
+  }
+
+  /**************************************************************************
+   * Camera analysis loop
+   **************************************************************************/
+  async function analyzeFrame() {
+    if (!models.coco || !models.face || !stream) return;
+
+    // draw video frame to overlay for annotations
+    overlayCtx.clearRect(0, 0, overlay.width, overlay.height);
+    try {
+      // object detection (coarse)
+      const predictions = await models.coco.detect(webcamEl);
+      let objectWarn = null;
+      // look for suspicious classes
+      const suspicious = ['cell phone', 'book', 'laptop', 'handbag', 'bottle'];
+      for (const p of predictions) {
+        // scale bounding box to canvas, optionally draw boxes
+        const [x, y, w, h] = p.bbox;
+        overlayCtx.strokeStyle = 'rgba(255,165,0,0.8)';
+        overlayCtx.lineWidth = 2;
+        overlayCtx.strokeRect(x, y, w, h);
+        overlayCtx.font = '14px sans-serif';
+        overlayCtx.fillStyle = 'rgba(255,165,0,0.9)';
+        overlayCtx.fillText(p.class + ' (' + Math.round(p.score*100) + '%)', x+4, y+16);
+
+        if (suspicious.includes(p.class)) {
+          objectWarn = p.class;
+        }
+      }
+
+      if (objectWarn) {
+        objectStatus.textContent = 'Detected: ' + objectWarn;
+        objectStatus.className = 'danger';
+        addInfraction('Suspicious object detected: ' + objectWarn);
+      } else {
+        objectStatus.textContent = 'None';
+        objectStatus.className = 'ok';
+      }
+
+      // face landmarks to check presence and eye/gaze heuristics
+      const faces = await models.face.estimateFaces({input: webcamEl, returnTensors:false, flipHorizontal:false, predictIrises: true});
+      if (!faces || faces.length === 0) {
+        faceStatus.textContent = 'NO';
+        faceStatus.className = 'danger';
+        // penalize if no face for a while
+        addInfraction('No face detected');
+      } else {
+        // draw face bounding box and check eye/gaze heuristics of first face
+        faceStatus.textContent = 'YES';
+        faceStatus.className = 'ok';
+
+        const f = faces[0];
+        if (f.boundingBox) {
+          const box = f.boundingBox;
+          overlayCtx.strokeStyle = 'rgba(0,200,0,0.9)';
+          overlayCtx.lineWidth = 2;
+          overlayCtx.strokeRect(box.topLeft[0], box.topLeft[1], box.bottomRight[0]-box.topLeft[0], box.bottomRight[1]-box.topLeft[1]);
+        }
+
+        // check iris/eye landmarks if available
+        if (f.annotations && f.annotations.leftEyeUpper0 && f.annotations.rightEyeUpper0) {
+          // compute a very rough left/right gaze offset: compare eye centers to face center
+          const leftEye = centroid(f.annotations.leftEyeUpper0.concat(f.annotations.leftEyeLower0 || []));
+          const rightEye = centroid(f.annotations.rightEyeUpper0.concat(f.annotations.rightEyeLower0 || []));
+          const faceCenterX = (f.boundingBox.topLeft[0] + f.boundingBox.bottomRight[0]) / 2;
+          const eyeCenterX = (leftEye[0] + rightEye[0]) / 2;
+
+          // if eyes center shifts too far left or right (heuristic), mark
+          const shift = (eyeCenterX - faceCenterX) / (f.boundingBox.bottomRight[0] - f.boundingBox.topLeft[0]); // normalized
+          if (Math.abs(shift) > 0.25) {
+            addInfraction('Large gaze/eye movement detected');
+            overlayCtx.fillStyle = 'rgba(255,0,0,0.6)';
+            overlayCtx.fillText('Gaze Shift', faceCenterX, f.boundingBox.topLeft[1]-8);
+          }
+        }
+      }
+
+    } catch (e) {
+      console.warn('Analysis error', e);
+      // don't spam logs; just report once
+    }
+  }
+
+  function centroid(points) {
+    if (!points || points.length === 0) return [0,0];
+    let sx=0, sy=0;
+    for (const p of points) { sx += p[0]; sy += p[1]; }
+    return [sx/points.length, sy/points.length];
+  }
+
+  /**************************************************************************
+   * Exam timer & flow
+   **************************************************************************/
+  function startExamTimer(minutes) {
+    examEndTime = Date.now() + minutes*60*1000;
+    updateTimer();
+    examTimer = setInterval(updateTimer, 1000);
+  }
+  function updateTimer() {
+    const leftMs = examEndTime - Date.now();
+    if (leftMs <= 0) {
+      timerEl.textContent = '00:00';
+      clearInterval(examTimer);
+      log('Time up — submitting exam.');
+      autoSubmitExam();
+      return;
+    }
+    const mins = Math.floor(leftMs / 60000);
+    const secs = Math.floor((leftMs % 60000) / 1000);
+    timerEl.textContent = String(mins).padStart(2,'0') + ':' + String(secs).padStart(2,'0');
+  }
+
+  /**************************************************************************
+   * Start / Stop proctoring
+   **************************************************************************/
+  startBtn.addEventListener('click', async () => {
+    // candidate name prompt (can be replaced by login data)
+    const name = prompt('Enter your full name for exam record:', '') || 'Candidate';
+    candidateNameEl.textContent = name;
+
+    startBtn.disabled = true;
+    const ok = await startMedia();
+    if (!ok) { startBtn.disabled = false; return; }
+
+    try {
+      await loadModels();
+    } catch (err) {
+      log('Error loading ML models: ' + err.message);
+      // allow fallback: still proceed with basic proctor checks (visibility, ESC prevention)
+    }
+
+    proctoring = true;
+    endBtn.disabled = false;
+    log('Proctoring started.');
+    setInfractions(0);
+
+    // start camera analysis loop
+    analysisInterval = setInterval(analyzeFrame, CHECK_INTERVAL_MS);
+
+    // start exam timer
+    startExamTimer(EXAM_DURATION_MIN);
+
+    // store audio track separately if needed
+    // stream.getAudioTracks() - already in stream
+
+  });
+
+  endBtn.addEventListener('click', () => {
+    if (!confirm('End and submit exam now?')) return;
+    stopProctor();
+    submitExam(false);
+  });
+
+  function stopProctor() {
+    proctoring = false;
+    startBtn.disabled = false;
+    endBtn.disabled = true;
+    clearInterval(analysisInterval);
+    analysisInterval = null;
+    clearInterval(examTimer);
+    examTimer = null;
+    stopMedia();
+    log('Proctoring stopped.');
+  }
+
+  /**************************************************************************
+   * Submit
+   **************************************************************************/
+  submitBtn.addEventListener('click', () => {
+    if (!confirm('Submit exam now?')) return;
+    stopProctor();
+    submitExam(false);
+  });
+
+  function submitExam(auto=false) {
+    // collect answers
+    const data = {
+      candidate: candidateNameEl.textContent || 'Candidate',
+      timestamp: new Date().toISOString(),
+      infractions,
+      autoSubmitted: !!auto,
+      answers: {
+        q1: document.querySelector('input[name="ans1"]:checked') ? document.querySelector('input[name="ans1"]:checked').value : null,
+        q2: document.querySelector('input[name="ans2"]:checked') ? document.querySelector('input[name="ans2"]:checked').value : null
+      }
+    };
+
+    // For now, we just display result and create a JSON for future server upload.
+    log('Exam submitted: ' + JSON.stringify(data));
+    alert('Exam submitted. Infractions: ' + infractions + (auto ? ' (auto-submitted)' : ''));
+
+    // In real app: POST to server endpoint (HTTPS) e.g.
+    // fetch('/api/submit-exam', { method:'POST', body: JSON.stringify(data), headers:{'Content-Type':'application/json'} })
+    //   .then(r=>r.json()).then(...)
+
+    // lock UI
+    submitBtn.disabled = true;
+    startBtn.disabled = true;
+    endBtn.disabled = true;
+  }
+
+  </script>
+</body>
+</html>
